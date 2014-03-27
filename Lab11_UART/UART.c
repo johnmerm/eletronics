@@ -28,7 +28,7 @@
 
 #include "tm4c123gh6pm.h"
 #include "UART.h"
-
+#include <stdio.h>
 //------------UART_Init------------
 // Initialize the UART for 115200 baud rate (assuming 80 MHz UART clock),
 // 8 bit word length, no parity bits, one stop bit, FIFOs enabled
@@ -37,7 +37,7 @@
 void UART_Init(void){
 // as part of Lab 11, modify this program to use UART0 instead of UART1
 //                 switching from PC5,PC4 to PA1,PA0
-  SYSCTL_RCGC1_R |= SYSCTL_RCGC1_UART0; // activate UART0
+  SYSCTL_RCGC1_R |= SYSCTL_RCGC1_UART0; // activate UART1
   SYSCTL_RCGC2_R |= SYSCTL_RCGC2_GPIOA; // activate port A
   UART0_CTL_R &= ~UART_CTL_UARTEN;      // disable UART
   UART0_IBRD_R = 43;                    // IBRD = int(80,000,000 / (16 * 115200)) = int(43.402778)
@@ -45,11 +45,19 @@ void UART_Init(void){
                                         // 8 bit word length (no parity bits, one stop bit, FIFOs)
   UART0_LCRH_R = (UART_LCRH_WLEN_8|UART_LCRH_FEN);
   UART0_CTL_R |= UART_CTL_UARTEN;       // enable UART
-  GPIO_PORTA_AFSEL_R |= 0x03;           // enable alt funct on PA1,PA0
-  GPIO_PORTA_DEN_R |= 0x03;             // enable digital I/O on PA1,PA0
-                                        // configure PA1,PA0 as UART0
+ /* UART 0 
+  GPIO_PORTC_AFSEL_R |=0x30;
+	GPIO_PORTC_DEN_R |= 0x30;
+	GPIO_PORTA_AMSEL_R &= ~0x30;
+	GPIO_PORTA_PCTL_R = (GPIO_PORTC_PCTL_R&0xFF00FFFF)+0x00220000;
+	*/ 
+	/* UART 1*/
+	GPIO_PORTA_AFSEL_R |= 0x03;           // enable alt funct on PA1,PA0
+	GPIO_PORTA_DEN_R |= 0x03;             // enable digital I/O on PA1,PA0
+                                        // configure PA1,PA0 as UART1
   GPIO_PORTA_PCTL_R = (GPIO_PORTA_PCTL_R&0xFFFFFF00)+0x00000011;
   GPIO_PORTA_AMSEL_R &= ~0x03;          // disable analog functionality on PA1,PA0
+	
 }
 
 //------------UART_InChar------------
@@ -123,13 +131,14 @@ char character;
 // Output: none
 void UART_OutString(unsigned char buffer[]){
 // as part of Lab 11 implement this function
-	unsigned int i=0;
-	unsigned char c;
-	do{
-		c = buffer[i];
+	int i=0;
+	unsigned char c= buffer[i];
+	
+	while (c > 0){
 		UART_OutChar(c);
 		i++;
-	}while (c !=0);
+		c = buffer[i];
+	}
 }
 
 
@@ -149,40 +158,23 @@ unsigned char String[10];
 //10000 to "**** "  any value larger than 9999 converted to "**** "
 void UART_ConvertUDec(unsigned long n){
 // as part of Lab 11 implement this function
-	int length = 0,i=0,prefix;
-	int r = n;
-	int pow = 1;
-	do{
-		r /= 10;
-		length ++;
-	}while (n>0);
-	
-	for (i=0;i<length;i++){
-		pow *=10;
-	}
-	
-	prefix = 4-length;
-	
-	if (prefix >=0){
-		for (i=0;i<prefix;i++){
-			String[i] = ' ';
-		}
-		r = n;
-		for (i=0;i<length;i++){
-			String[prefix+i]= r/pow;
-			r %= pow;
-			pow /=10;
-		}
+	if (n<10){
+		sprintf((char *)String,"   %1d ",(int)n);
+	}else if (n<100){
+		sprintf((char *)String,"  %2d ",(int)n);
+	}else if (n<1000){
+		sprintf((char *)String," %3d ",(int)n);
+	}else if (n<10000){
+		sprintf((char *)String,"%4d ",(int)n);
 	}else{
-		for (i=0;i<4;i++){
-			String[i]='*';
-		}
-		
+		sprintf((char *)String,"**** ");
 	}
-	String[4] = ' ';
-	String[5] = 0;
-	
-	
+		
+	if (n>9999){
+		
+	}else{
+		sprintf((char *)String,"%4d ",(int)n);
+	}
   
 }
 
@@ -209,51 +201,11 @@ void UART_OutUDec(unsigned long n){
 //10000 to "*.*** cm"  any value larger than 9999 converted to "*.*** cm"
 void UART_ConvertDistance(unsigned long n){
 // as part of Lab 11 implement this function
-	int length = 0,i=0,prefix;
-	int r = n;
-	int pow = 1;
-	do{
-		r /= 10;
-		length ++;
-	}while (n>0);
-	
-	for (i=0;i<length;i++){
-		pow *=10;
-	}
-	
-	prefix = 4-length;
-	
-	if (prefix >=0){
-		for (i=0;i<prefix;i++){
-			String[i] = ' ';
-		}
-		r = n;
-		
-		String[prefix]= r/pow;
-		String[prefix+1]= r/pow;
-		r %= pow;
-		pow /=10;
-		
-		for (i=1;i<length;i++){
-			String[prefix+i+1]= r/pow;
-			r %= pow;
-			pow /=10;
-		}
-		
+	if (n>9999){
+		sprintf((char *)String,"*.*** cm");
 	}else{
-		String[0]='*';
-		String[1]='.';
-		for (i=0;i<4;i++){
-			String[i]='*';
-		}
-		
+		sprintf((char *)String,"%1.3f cm",(float)n/1000);
 	}
-	String[6] = ' ';
-	String[7] = 'c';
-	String[8] = 'm';
-	String[9] = 0;
-
-	
   
 }
 
