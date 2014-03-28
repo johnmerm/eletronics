@@ -11,9 +11,6 @@
 #include "..//tm4c123gh6pm.h"
 
 
-void DisableInterrupts(void); // Disable interrupts
-void EnableInterrupts(void);  // Enable interrupts
-void WaitForInterrupt(void);  // low power mode
 
 // **************Sound_Init*********************
 // Initialize Systick periodic interrupts
@@ -22,17 +19,12 @@ void WaitForInterrupt(void);  // low power mode
 // Output: none
 void Sound_Init(void){
   DAC_Init();
-	
-	NVIC_ST_CTRL_R = 0;           								// disable SysTick during setup
-  NVIC_ST_RELOAD_R = 90908;     								// 80*10^6/880 -1
-  NVIC_ST_CURRENT_R = 0;        								// any write to current clears it
-  NVIC_SYS_PRI3_R = NVIC_SYS_PRI3_R&0x00FFFFFF; // priority 0               
-  NVIC_ST_CTRL_R = 0x00000007;  								// enable with core clock and interrupts
-  EnableInterrupts();
-	
-	
-}
+	NVIC_ST_CTRL_R = 0x07;			// enable with core clock and interrupts
+	NVIC_SYS_PRI3_R = NVIC_SYS_PRI3_R&0x00FFFFFF; // priority 0               
+  Sound_Off();
 
+}
+unsigned short sounding = 0;
 // **************Sound_Tone*********************
 // Change Systick periodic interrupts to start sound output
 // Input: interrupt period
@@ -42,19 +34,42 @@ void Sound_Init(void){
 // Output: none
 void Sound_Tone(unsigned long period){
 // this routine sets the RELOAD and starts SysTick
+	NVIC_ST_CTRL_R = 0;         // disable SysTick during setup
+  NVIC_ST_RELOAD_R = period-1;// reload value
+  NVIC_ST_CURRENT_R = 0;      // any write to current clears it
+	NVIC_ST_CTRL_R = 0x07;			// enable with core clock and interrupts
+	sounding = 1;
 }
 
 
 // **************Sound_Off*********************
 // stop outputing to DAC
 // Output: none
+
 void Sound_Off(void){
  // this routine stops the sound output
+	sounding = 0;
+	DAC_Out(0);
 }
+
+
+
+// 4-bit 32-element sine wave
+const unsigned short wave[32] = {
+  8,9,11,12,13,14,14,15,15,15,14,
+  14,13,12,11,9,8,7,5,4,3,2,
+  2,1,1,1,2,2,3,4,5,7};
 
 
 // Interrupt service routine
 // Executed every 12.5ns*(period)
+unsigned int count =0;	
 void SysTick_Handler(void){
-   
+	if (sounding){
+		unsigned short data = wave[count];
+		DAC_Out(data);
+		count = (count +1) % 32;
+	}else{
+		DAC_Out(0);
+	}
 }

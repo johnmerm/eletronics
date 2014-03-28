@@ -16,7 +16,7 @@
 // Input: none
 // Output: none
 void Piano_Init(void){ 
-  SYSCTL_RCGC2_R 			|= 0x00000010;// activate port E
+  
 	
 	GPIO_PORTE_DIR_R 		&= ~0x0F;  		// make PE0-3 input
 	GPIO_PORTE_AFSEL_R 	&= ~0x0F;			// disable alt funct on PE0-3
