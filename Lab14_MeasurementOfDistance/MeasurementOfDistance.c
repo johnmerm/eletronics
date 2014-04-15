@@ -51,7 +51,9 @@ unsigned long Flag;     // 1 means valid Distance, 0 means Distance is empty
 // Input: sample  12-bit ADC sample
 // Output: 32-bit distance (resolution 0.001cm)
 unsigned long Convert(unsigned long sample){
-  return 0;  // replace this line with real code
+	const int A = 500;
+	const int B = 1;
+	return ((A*ADCdata)>>10)+B;  // replace this line with real code
 }
 
 // Initialize SysTick interrupts to trigger at 40 Hz, 25 ms
@@ -66,9 +68,10 @@ void SysTick_Init(unsigned long period){
 }
 // executes every 25 ms, collects a sample, converts and stores in mailbox
 // Interrupt service routine
-// Executed every 62.5ns*(period) <=>25ms/62.5ns = 400,000
 void SysTick_Handler(void){ 
 	GPIO_PORTF_DATA_R ^= 0x02;       // toggle PF1
+	ADCdata = ADC0_In();
+  Distance = Convert(ADCdata);
 }
 
 //-----------------------UART_ConvertDistance-----------------------
@@ -112,7 +115,7 @@ int main(void){
 // initialize Nokia5110 LCD (optional)
 	Nokia5110_Init();
 // initialize SysTick for 40 Hz interrupts
-	SysTick_Init(400000);
+	SysTick_Init(2000000);
 // initialize profiling on PF1 (optional)
 	PF1_init();
   EnableInterrupts();
@@ -120,6 +123,13 @@ int main(void){
   while(1){ 
 // read mailbox
 // output to Nokia5110 LCD (optional)
+		
+		
+		UART_ConvertDistance(Distance); // from Lab 11
+		Nokia5110_SetCursor(0, 0);
+		Nokia5110_OutString(String);
+		
+					
   }
 }
 
@@ -135,13 +145,14 @@ int main2(void){
   TExaS_Init(ADC0_AIN1_PIN_PE2, SSI0_Real_Nokia5110_NoScope);
   ADC0_Init();    // initialize ADC0, channel 1, sequencer 3
   Nokia5110_Init();             // initialize Nokia5110 LCD
+
   EnableInterrupts();
   while(1){ 
     ADCdata = ADC0_In();
-    Nokia5110_SetCursor(0, 0);
     Distance = Convert(ADCdata);
     UART_ConvertDistance(Distance); // from Lab 11
-    Nokia5110_OutString(String);    
+    Nokia5110_SetCursor(0, 0);
+		Nokia5110_OutString(String);    
   }
 }
 
